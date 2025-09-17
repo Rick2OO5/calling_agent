@@ -1,0 +1,44 @@
+
+version: "3.8"
+services:
+  asterisk:
+    image: andrius/asterisk:latest
+    container_name: asterisk
+    ports:
+      - "5060:5060/udp"
+      - "5060:5060/tcp"
+      - "10000-20000:10000-20000/udp"
+    volumes:
+      - ./asterisk/config:/etc/asterisk
+      - ./asterisk/sounds:/var/lib/asterisk/sounds
+    restart: unless-stopped
+
+  flaskapp:
+    build: ./flask_app
+    container_name: flaskapp
+    depends_on:
+      - asterisk
+    volumes:
+      - ./flask_app:/usr/src/app
+      - ./models:/usr/src/app/models
+      - ./asterisk/sounds:/usr/src/app/tts_out
+    environment:
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY}
+      - VOSK_MODEL_PATH=/usr/src/app/models/vosk-model-small-en-us-0.15
+      - PUBLIC_BASE_URL=${PUBLIC_BASE_URL}
+      - AST_SOUNDS_DIR=/usr/src/app/tts_out
+    ports:
+      - "5000:5000"
+    restart: unless-stopped
+
+  n8n:
+    image: n8nio/n8n:latest
+    container_name: n8n
+    ports:
+      - "5678:5678"
+    volumes:
+      - ./n8n_data:/home/node/.n8n
+    environment:
+      - GENERIC_TIMEZONE=Asia/Kolkata
+    restart: unless-stopped
